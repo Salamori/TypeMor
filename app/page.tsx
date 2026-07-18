@@ -9,6 +9,7 @@ import { TextSelector } from "@/components/TextSelector";
 import { WordReview } from "@/components/WordReview";
 import { SAMPLE_TEXTS } from "@/lib/sample-texts";
 import { generateWords } from "@/lib/word-pool";
+import Link from "next/link";
 
 export default function Home() {
   const [text, setText] = useState(SAMPLE_TEXTS[0]);
@@ -64,7 +65,7 @@ export default function Home() {
         Type<span className="text-emerald-400">Mor</span>
       </h1>
 
-      <p className="text-sm text-zinc-500 mb-6">
+    <p className="text-sm text-zinc-500 mb-6">
         {rank.name} · <span className="text-emerald-400 font-semibold">{points}</span> pts
       </p>
 
