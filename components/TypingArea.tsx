@@ -13,7 +13,6 @@ interface TypingAreaProps {
 export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingAreaProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -43,10 +42,7 @@ export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingA
           }
         }}
       />
-      <div
-        ref={containerRef}
-        className="text-2xl leading-relaxed font-mono tracking-wide select-none p-6 rounded-xl bg-zinc-900 border border-zinc-800 h-[168px] overflow-hidden"
-      >
+      <div className="text-2xl leading-relaxed font-mono tracking-wide select-none p-6 rounded-xl bg-zinc-900 border border-zinc-800 h-[168px] overflow-hidden">
         {chars.map((c, i) => (
           <span
             key={i}

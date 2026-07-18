@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useTypingEngine } from "@/hooks/useTypingEngine";
+import { useVocabulary } from "@/hooks/useVocabulary";
 import { TypingArea } from "@/components/TypingArea";
 import { StatsBar } from "@/components/StatsBar";
 import { TextSelector } from "@/components/TextSelector";
-import { getRandomText, SAMPLE_TEXTS } from "@/lib/sample-texts";
+import { WordReview } from "@/components/WordReview";
+import { SAMPLE_TEXTS } from "@/lib/sample-texts";
 import { generateWords } from "@/lib/word-pool";
 
 export default function Home() {
@@ -14,6 +16,7 @@ export default function Home() {
   const [wordCount, setWordCount] = useState(25);
   const { chars, cursorIndex, stats, isFinished, handleKeyInput, reset } =
     useTypingEngine(text);
+  const { points, rank, isMarked, markWord, unmarkWord } = useVocabulary();
 
   useEffect(() => {
     const initial = generateWords(25);
@@ -47,11 +50,23 @@ export default function Home() {
     }
   }
 
+  function handleToggleWord(word: string) {
+    if (isMarked(word)) {
+      unmarkWord(word);
+    } else {
+      markWord(word);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-4 py-12">
-      <h1 className="text-4xl font-bold text-white mb-8 tracking-tight">
+      <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
         Type<span className="text-emerald-400">Mor</span>
       </h1>
+
+      <p className="text-sm text-zinc-500 mb-6">
+        {rank.name} · <span className="text-emerald-400 font-semibold">{points}</span> pts
+      </p>
 
       <TextSelector
         onSelectLength={handleSelectLength}
@@ -70,17 +85,25 @@ export default function Home() {
       />
 
       {isFinished && (
-        <div className="mt-6 text-center">
-          <p className="text-emerald-400 text-lg font-semibold mb-3">
-            🎉 Finished! {stats.wpm} WPM · {stats.accuracy}% accuracy
-          </p>
-          <button
-            onClick={handleNewText}
-            className="px-5 py-2 rounded-lg bg-emerald-500 text-zinc-950 font-medium hover:bg-emerald-400 transition"
-          >
-            Try another text
-          </button>
-        </div>
+        <>
+          <div className="mt-6 text-center">
+            <p className="text-emerald-400 text-lg font-semibold mb-3">
+              🎉 Finished! {stats.wpm} WPM · {stats.accuracy}% accuracy
+            </p>
+            <button
+              onClick={handleNewText}
+              className="px-5 py-2 rounded-lg bg-emerald-500 text-zinc-950 font-medium hover:bg-emerald-400 transition"
+            >
+              Try another text
+            </button>
+          </div>
+
+          <WordReview
+            text={text}
+            isWordMarked={isMarked}
+            onToggleWord={handleToggleWord}
+          />
+        </>
       )}
 
       {!isFinished && (
