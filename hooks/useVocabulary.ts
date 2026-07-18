@@ -12,7 +12,11 @@ import {
 } from "@/lib/vocabulary";
 
 export function useVocabulary() {
-  const [state, setState] = useState<VocabState>({ words: {}, points: 0 });
+  const [state, setState] = useState<VocabState>({
+    words: {},
+    points: 0,
+    stats: { textsCompleted: 0, bestWpm: 0, bestAccuracy: 0, perfectRuns: 0 },
+  });
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -24,7 +28,7 @@ export function useVocabulary() {
     if (loaded) saveVocabState(state);
   }, [state, loaded]);
 
-  const markWord = useCallback((rawWord: string) => {
+ const markWord = useCallback((rawWord: string) => {
     const word = normalizeWord(rawWord);
     if (!word) return;
 
@@ -36,6 +40,7 @@ export function useVocabulary() {
           [word]: { word, addedAt: Date.now(), correctStreak: 0, mastered: false },
         },
         points: prev.points + POINTS.MARK_NEW,
+        stats: prev.stats,
       };
     });
   }, []);
@@ -67,24 +72,38 @@ export function useVocabulary() {
           prev.points +
           POINTS.CORRECT_RETYPE +
           (justMastered ? POINTS.MASTERED : 0),
+           stats: prev.stats,
       };
     });
+  }, []);
+  const recordSessionResult = useCallback((wpm: number, accuracy: number) => {
+    setState((prev) => ({
+      ...prev,
+      stats: {
+        textsCompleted: prev.stats.textsCompleted + 1,
+        bestWpm: Math.max(prev.stats.bestWpm, wpm),
+        bestAccuracy: Math.max(prev.stats.bestAccuracy, accuracy),
+        perfectRuns: prev.stats.perfectRuns + (accuracy === 100 ? 1 : 0),
+      },
+    }));
   }, []);
 
   const isMarked = useCallback(
     (rawWord: string) => Boolean(state.words[normalizeWord(rawWord)]),
     [state.words]
-  );
+  )
 
   const rank = getRankForPoints(state.points);
 
   return {
-    words: state.words,
+     words: state.words,
     points: state.points,
+    stats: state.stats,
     rank,
     markWord,
     unmarkWord,
     recordCorrectRetype,
+    recordSessionResult,
     isMarked,
     loaded,
   };

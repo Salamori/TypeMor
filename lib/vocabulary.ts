@@ -5,21 +5,40 @@ export interface VocabWord {
   mastered: boolean;
 }
 
+export interface Stats {
+  textsCompleted: number;
+  bestWpm: number;
+  bestAccuracy: number;
+  perfectRuns: number;
+}
+
 export interface VocabState {
   words: Record<string, VocabWord>;
   points: number;
+  stats: Stats;
 }
 
 const STORAGE_KEY = "typemor_vocabulary";
 
+const EMPTY_STATE: VocabState = {
+  words: {},
+  points: 0,
+  stats: { textsCompleted: 0, bestWpm: 0, bestAccuracy: 0, perfectRuns: 0 },
+};
+
 export function loadVocabState(): VocabState {
-  if (typeof window === "undefined") return { words: {}, points: 0 };
+  if (typeof window === "undefined") return EMPTY_STATE;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { words: {}, points: 0 };
-    return JSON.parse(raw) as VocabState;
+    if (!raw) return EMPTY_STATE;
+    const parsed = JSON.parse(raw) as Partial<VocabState>;
+    return {
+      words: parsed.words ?? {},
+      points: parsed.points ?? 0,
+      stats: parsed.stats ?? EMPTY_STATE.stats,
+    };
   } catch {
-    return { words: {}, points: 0 };
+    return EMPTY_STATE;
   }
 }
 

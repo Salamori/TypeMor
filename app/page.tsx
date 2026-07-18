@@ -17,13 +17,19 @@ export default function Home() {
   const [wordCount, setWordCount] = useState(25);
   const { chars, cursorIndex, stats, isFinished, handleKeyInput, reset } =
     useTypingEngine(text);
-  const { points, rank, isMarked, markWord, unmarkWord } = useVocabulary();
+  const { points, rank, isMarked, markWord, unmarkWord, recordSessionResult } = useVocabulary();
 
   useEffect(() => {
     const initial = generateWords(25);
     setText(initial);
     reset(initial);
   }, []);
+  useEffect(() => {
+    if (isFinished) {
+      recordSessionResult(stats.wpm, stats.accuracy);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFinished]);
 
   const progress = Math.round((cursorIndex / chars.length) * 100);
 
