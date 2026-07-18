@@ -8,35 +8,47 @@ import { StatsBar } from "@/components/StatsBar";
 import { TextSelector } from "@/components/TextSelector";
 import { WordReview } from "@/components/WordReview";
 import { SAMPLE_TEXTS } from "@/lib/sample-texts";
+import { checkWordsInText } from "@/lib/vocabulary";
 import { generateWords } from "@/lib/word-pool";
 import Link from "next/link";
+import { LevelBar } from "@/components/LevelBar";
 
 export default function Home() {
   const [text, setText] = useState(SAMPLE_TEXTS[0]);
   const [mode, setMode] = useState<"words" | "custom">("words");
-  const [wordCount, setWordCount] = useState(25);
+ const [wordCount, setWordCount] = useState(25);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy");
   const { chars, cursorIndex, stats, isFinished, handleKeyInput, reset } =
     useTypingEngine(text);
-  const { points, rank, isMarked, markWord, unmarkWord, recordSessionResult } = useVocabulary();
+  const { points, rank, isMarked, markWord, unmarkWord, recordSessionResult, recordCorrectRetype } =
+    useVocabulary();
 
-  useEffect(() => {
-    const initial = generateWords(25);
+ useEffect(() => {
+    const initial = generateWords(25, "easy");
     setText(initial);
     reset(initial);
   }, []);
-  useEffect(() => {
+useEffect(() => {
     if (isFinished) {
       recordSessionResult(stats.wpm, stats.accuracy);
+
+      const charStatuses = chars.map((c) => c.status);
+      const wordResults = checkWordsInText(text, charStatuses);
+      for (const result of wordResults) {
+        if (result.correct && isMarked(result.word)) {
+          recordCorrectRetype(result.word);
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFinished]);
-
   const progress = Math.round((cursorIndex / chars.length) * 100);
 
-  function handleSelectLength(count: number) {
+ function handleSelectLength(count: number, diff: "easy" | "medium" | "hard") {
     setMode("words");
     setWordCount(count);
-    const next = generateWords(count);
+    setDifficulty(diff);
+    const next = generateWords(count, diff);
     setText(next);
     reset(next);
   }
@@ -71,15 +83,14 @@ export default function Home() {
         Type<span className="text-emerald-400">Mor</span>
       </h1>
 
-    <p className="text-sm text-zinc-500 mb-6">
-        {rank.name} · <span className="text-emerald-400 font-semibold">{points}</span> pts
-      </p>
+  <LevelBar points={points} />
 
-      <TextSelector
+     <TextSelector
         onSelectLength={handleSelectLength}
         onSelectCustom={handleSelectCustom}
         currentMode={mode}
         currentCount={wordCount}
+        currentDifficulty={difficulty}
       />
 
       <StatsBar stats={stats} progress={progress} />

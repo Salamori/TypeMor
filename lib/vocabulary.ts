@@ -88,3 +88,39 @@ export function getNextRank(points: number): Rank | null {
   }
   return null;
 }
+export interface WordCheckResult {
+  word: string;
+  correct: boolean;
+}
+
+export function checkWordsInText(
+  text: string,
+  charStatuses: ("pending" | "correct" | "incorrect")[]
+): WordCheckResult[] {
+  const results: WordCheckResult[] = [];
+  let current = "";
+  let currentCorrect = true;
+  let hasChars = false;
+
+  for (let i = 0; i <= text.length; i++) {
+    const ch = text[i];
+    const isBoundary = ch === undefined || ch === " ";
+
+    if (isBoundary) {
+      if (hasChars) {
+        results.push({ word: normalizeWord(current), correct: currentCorrect });
+      }
+      current = "";
+      currentCorrect = true;
+      hasChars = false;
+    } else {
+      current += ch;
+      hasChars = true;
+      if (charStatuses[i] === "incorrect") {
+        currentCorrect = false;
+      }
+    }
+  }
+
+  return results;
+}
