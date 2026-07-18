@@ -59,11 +59,11 @@ useEffect(() => {
     reset(customText);
   }
 
-  function handleNewText() {
+ function handleNewText() {
     if (mode === "custom") {
       reset(text);
     } else {
-      const next = generateWords(wordCount);
+      const next = generateWords(wordCount, difficulty);
       setText(next);
       reset(next);
     }
