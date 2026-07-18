@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useVocabulary } from "@/hooks/useVocabulary";
+import { WordDefinition } from "@/components/WordDefinition";
 
 type Filter = "all" | "learning" | "mastered";
 
@@ -10,6 +11,7 @@ export default function VocabularyPage() {
   const { words, points, rank, markWord, unmarkWord, loaded } = useVocabulary();
   const [filter, setFilter] = useState<Filter>("all");
   const [newWord, setNewWord] = useState("");
+  const [expandedWord, setExpandedWord] = useState<string | null>(null);
 
   const wordList = Object.values(words).sort((a, b) => b.addedAt - a.addedAt);
 
@@ -107,26 +109,41 @@ export default function VocabularyPage() {
             {filtered.map((w) => (
               <div
                 key={w.word}
-                className="flex items-center justify-between px-4 py-3 rounded-lg bg-zinc-900 border border-zinc-800"
+                className="rounded-lg bg-zinc-900 border border-zinc-800"
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-zinc-200">{w.word}</span>
-                  {w.mastered ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
-                      ✓ Mastered
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-                      {w.correctStreak}/3 streak
-                    </span>
-                  )}
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div
+                    className="flex items-center gap-3 cursor-pointer flex-1"
+                    onClick={() =>
+                      setExpandedWord(expandedWord === w.word ? null : w.word)
+                    }
+                  >
+                    <span className="font-mono text-zinc-200">{w.word}</span>
+                    {w.mastered ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                        ✓ Mastered
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                        {w.correctStreak}/3 streak
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => unmarkWord(w.word)}
+                    className="text-zinc-600 hover:text-red-400 transition text-sm"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button
-                  onClick={() => unmarkWord(w.word)}
-                  className="text-zinc-600 hover:text-red-400 transition text-sm"
-                >
-                  Remove
-                </button>
+                {expandedWord === w.word && (
+                  <div className="px-4 pb-4">
+                    <WordDefinition
+                      word={w.word}
+                      onClose={() => setExpandedWord(null)}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
