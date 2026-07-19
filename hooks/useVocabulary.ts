@@ -76,17 +76,23 @@ export function useVocabulary() {
       };
     });
   }, []);
-  const recordSessionResult = useCallback((wpm: number, accuracy: number) => {
-    setState((prev) => ({
-      ...prev,
-      stats: {
-        textsCompleted: prev.stats.textsCompleted + 1,
-        bestWpm: Math.max(prev.stats.bestWpm, wpm),
-        bestAccuracy: Math.max(prev.stats.bestAccuracy, accuracy),
-        perfectRuns: prev.stats.perfectRuns + (accuracy === 100 ? 1 : 0),
-      },
-    }));
-  }, []);
+  const recordSessionResult = useCallback(
+    (wpm: number, accuracy: number, countsForRecords: boolean = true) => {
+      setState((prev) => ({
+        ...prev,
+        stats: {
+          textsCompleted: prev.stats.textsCompleted + 1,
+          bestWpm: countsForRecords ? Math.max(prev.stats.bestWpm, wpm) : prev.stats.bestWpm,
+          bestAccuracy: countsForRecords
+            ? Math.max(prev.stats.bestAccuracy, accuracy)
+            : prev.stats.bestAccuracy,
+          perfectRuns:
+            prev.stats.perfectRuns + (countsForRecords && accuracy === 100 ? 1 : 0),
+        },
+      }));
+    },
+    []
+  );
 
   const isMarked = useCallback(
     (rawWord: string) => Boolean(state.words[normalizeWord(rawWord)]),

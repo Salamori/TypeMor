@@ -30,7 +30,11 @@ export default function Home() {
   }, []);
 useEffect(() => {
     if (isFinished) {
-      recordSessionResult(stats.wpm, stats.accuracy);
+      // Only count toward personal records if it's a generated text
+      // of reasonable length (custom texts and very short texts can
+      // produce unrealistic WPM spikes).
+      const countsForRecords = mode === "words" && text.length >= 15;
+      recordSessionResult(stats.wpm, stats.accuracy, countsForRecords);
 
       const charStatuses = chars.map((c) => c.status);
       const wordResults = checkWordsInText(text, charStatuses);
