@@ -78,7 +78,7 @@ useEffect(() => {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-3 sm:px-4 py-6 sm:py-12">
       <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
         Type<span className="text-emerald-400">Mor</span>
       </h1>

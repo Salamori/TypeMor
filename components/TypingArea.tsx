@@ -13,10 +13,18 @@ interface TypingAreaProps {
 export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingAreaProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const cursorRef = useRef<HTMLSpanElement>(null);
+  const typedRef = useRef("");
 
-  useEffect(() => {
+ useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (cursorIndex === 0) {
+      typedRef.current = "";
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }, [chars]);
 
   useEffect(() => {
     cursorRef.current?.scrollIntoView({
@@ -25,24 +33,61 @@ export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingA
     });
   }, [cursorIndex]);
 
+ function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    console.log("INPUT EVENT FIRED:", e.target.value);
+    const value = e.target.value;
+    const prev = typedRef.current;
+
+    if (value.length > prev.length) {
+      // character(s) added
+      const added = value.slice(prev.length);
+      for (const ch of added) {
+        onKeyInput(ch);
+      }
+    } else if (value.length < prev.length) {
+      // backspace
+      const diff = prev.length - value.length;
+      for (let i = 0; i < diff; i++) {
+        onKeyInput("Backspace");
+      }
+    }
+
+    typedRef.current = value;
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Physical keyboards: handle directly for reliability (desktop)
+    if (e.key.length === 1) {
+      e.preventDefault();
+      onKeyInput(e.key);
+      return;
+    }
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      onKeyInput("Backspace");
+    }
+  }
+
   return (
     <div
       className="relative w-full max-w-3xl mx-auto cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
-      <input
+     <input
         ref={inputRef}
         type="text"
-        className="absolute opacity-0 pointer-events-none"
+        inputMode="text"
+        autoCapitalize="none"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
         disabled={disabled}
-        onKeyDown={(e) => {
-          if (e.key.length === 1 || e.key === "Backspace") {
-            e.preventDefault();
-            onKeyInput(e.key);
-          }
-        }}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        suppressHydrationWarning
+        className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-text"
       />
-      <div className="text-2xl leading-relaxed font-mono tracking-wide select-none p-6 rounded-xl bg-zinc-900 border border-zinc-800 h-[168px] overflow-hidden">
+      <div className="text-lg sm:text-2xl leading-relaxed font-mono tracking-wide select-none p-4 sm:p-6 rounded-xl bg-zinc-900 border border-zinc-800 h-[140px] sm:h-[168px] overflow-hidden">
         {chars.map((c, i) => (
           <span
             key={i}

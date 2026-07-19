@@ -37,12 +37,12 @@ export function TextSelector({
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-6">
-      <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
+      <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap mb-2">
         {WORD_OPTIONS.map((count) => (
           <button
             key={count}
             onClick={() => onSelectLength(count, currentDifficulty)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition ${
               currentMode === "words" && currentCount === count
                 ? "bg-emerald-500 text-zinc-950"
                 : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"

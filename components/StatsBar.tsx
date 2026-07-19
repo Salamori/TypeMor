@@ -8,7 +8,7 @@ interface StatsBarProps {
 export function StatsBar({ stats, progress }: StatsBarProps) {
   return (
     <div className="w-full max-w-3xl mx-auto mb-6">
-      <div className="flex justify-between text-sm text-zinc-400 mb-2 font-mono">
+      <div className="flex justify-between text-xs sm:text-sm text-zinc-400 mb-2 font-mono">
         <span>
           WPM: <span className="text-emerald-400 font-bold">{stats.wpm}</span>
         </span>
