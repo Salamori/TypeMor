@@ -4,6 +4,8 @@ import { useState } from "react";
 import { checkWriting, WritingMatch } from "@/lib/writing";
 import { WritingErrors } from "@/components/WritingErrors";
 import { useVocabulary } from "@/hooks/useVocabulary";
+import { useStreak } from "@/hooks/useStreak";
+import { useDailyQuests } from "@/hooks/useDailyQuests";
 
 export function WritingEditor() {
   const [text, setText] = useState("");
@@ -11,6 +13,8 @@ export function WritingEditor() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState(false);
   const { markWord } = useVocabulary();
+  const { markActive } = useStreak();
+  const { progressQuest } = useDailyQuests();
 
   async function handleCheck() {
     if (text.trim().length === 0) return;
@@ -26,7 +30,9 @@ export function WritingEditor() {
       return;
     }
 
-    setMatches(result.matches);
+   setMatches(result.matches);
+    markActive();
+    progressQuest("write_essay");
 
     // Auto-add words with errors to vocabulary
     for (const word of result.errorWords) {
@@ -109,6 +115,8 @@ export function WritingEditor() {
           Couldn&apos;t check your writing right now. Please try again.
         </p>
       )}
+
+      {matches !== null && <WritingErrors matches={matches} />}
     </div>
   );
 }
