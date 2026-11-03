@@ -1,13 +1,11 @@
 "use client";
 
+import { normalizeWord } from "@/lib/vocabulary";
+
 interface WordReviewProps {
   text: string;
   isWordMarked: (word: string) => boolean;
   onToggleWord: (word: string) => void;
-}
-
-function normalizeForClick(raw: string): string {
-  return raw.toLowerCase().replace(/[^a-z']/g, "");
 }
 
 export function WordReview({ text, isWordMarked, onToggleWord }: WordReviewProps) {
@@ -20,7 +18,7 @@ export function WordReview({ text, isWordMarked, onToggleWord }: WordReviewProps
       </p>
       <div className="text-lg leading-relaxed font-mono p-5 rounded-xl bg-zinc-900 border border-zinc-800 flex flex-wrap gap-x-2">
         {words.map((raw, i) => {
-          const clean = normalizeForClick(raw);
+          const clean = normalizeWord(raw);
           const marked = clean.length > 0 && isWordMarked(clean);
           return (
             <span

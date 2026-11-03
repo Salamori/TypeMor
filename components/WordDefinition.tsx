@@ -3,35 +3,27 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchDefinition, fetchTranslation, DictionaryEntry } from "@/lib/dictionary";
 
+interface LookupResult {
+  word: string;
+  entry: DictionaryEntry | null;
+  translation: string | null;
+}
+
 interface WordDefinitionProps {
   word: string;
   onClose: () => void;
 }
 
 export function WordDefinition({ word, onClose }: WordDefinitionProps) {
-  const [entry, setEntry] = useState<DictionaryEntry | null>(null);
-  const [translation, setTranslation] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [result, setResult] = useState<LookupResult | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setNotFound(false);
-    setEntry(null);
-    setTranslation(null);
 
     Promise.all([fetchDefinition(word), fetchTranslation(word)]).then(
-      ([defResult, transResult]) => {
-        if (cancelled) return;
-        setLoading(false);
-        if (!defResult) {
-          setNotFound(true);
-        } else {
-          setEntry(defResult);
-        }
-        setTranslation(transResult);
+      ([entry, translation]) => {
+        if (!cancelled) setResult({ word, entry, translation });
       }
     );
 
@@ -39,6 +31,13 @@ export function WordDefinition({ word, onClose }: WordDefinitionProps) {
       cancelled = true;
     };
   }, [word]);
+
+  // A result for a different word is stale — treat it as still loading.
+  const current = result?.word === word ? result : null;
+  const loading = current === null;
+  const entry = current?.entry ?? null;
+  const translation = current?.translation ?? null;
+  const notFound = current !== null && current.entry === null;
 
   function playAudio() {
     audioRef.current?.play();

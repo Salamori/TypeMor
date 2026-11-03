@@ -58,6 +58,10 @@ export async function fetchTranslation(word: string): Promise<string | null> {
     const data = await res.json();
     const translated: string | undefined = data?.responseData?.translatedText;
     if (!translated) return null;
+    // MyMemory returns the word unchanged when it has no translation, and
+    // puts quota/usage warnings in the same field.
+    if (translated.trim().toLowerCase() === word.trim().toLowerCase()) return null;
+    if (data?.quotaFinished || /MYMEMORY WARNING/i.test(translated)) return null;
 
     return translated;
   } catch {
