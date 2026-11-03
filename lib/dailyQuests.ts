@@ -1,3 +1,5 @@
+import { asObject, createLocalStore, getLocalDateString } from "@/lib/store";
+
 export type QuestType = "type_texts" | "write_essay" | "master_words" | "mark_words";
 
 export interface QuestDefinition {
@@ -50,89 +52,69 @@ export interface QuestSettings {
   targets: Record<QuestType, number>;
 }
 
-const STATE_KEY = "typemor_daily_quests";
-const SETTINGS_KEY = "typemor_quest_settings";
+const DEFAULT_SETTINGS: QuestSettings = {
+  enabledTypes: ["type_texts", "write_essay", "master_words", "mark_words"],
+  targets: {
+    type_texts: 3,
+    write_essay: 1,
+    master_words: 2,
+    mark_words: 3,
+  },
+};
 
-function getLocalDateString(): string {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export function loadQuestSettings(): QuestSettings {
-  const defaults: QuestSettings = {
-    enabledTypes: ["type_texts", "write_essay", "master_words"],
-    targets: {
-      type_texts: 3,
-      write_essay: 1,
-      master_words: 2,
-      mark_words: 3,
-    },
-  };
-  if (typeof window === "undefined") return defaults;
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return defaults;
-    return { ...defaults, ...JSON.parse(raw) };
-  } catch {
-    return defaults;
+export const questSettingsStore = createLocalStore<QuestSettings>(
+  "typemor_quest_settings",
+  DEFAULT_SETTINGS,
+  (raw) => {
+    const parsed = asObject<QuestSettings>(raw);
+    return {
+      enabledTypes: parsed.enabledTypes ?? DEFAULT_SETTINGS.enabledTypes,
+      targets: { ...DEFAULT_SETTINGS.targets, ...parsed.targets },
+    };
   }
-}
+);
 
-export function saveQuestSettings(settings: QuestSettings) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-function loadRawState(): DailyQuestState | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STATE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as DailyQuestState;
-  } catch {
-    return null;
+export const questStateStore = createLocalStore<DailyQuestState | null>(
+  "typemor_daily_quests",
+  null,
+  (raw) => {
+    const parsed = asObject<DailyQuestState>(raw);
+    return typeof parsed.date === "string" && Array.isArray(parsed.quests)
+      ? (parsed as DailyQuestState)
+      : null;
   }
-}
+);
 
-function saveRawState(state: DailyQuestState) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-}
-
-// Returns today's quest state, regenerating it (fresh, zeroed progress)
-// if the stored state is from a previous day, based on current settings.
-export function getTodaysQuests(): DailyQuestState {
-  const today = getLocalDateString();
-  const existing = loadRawState();
-  const settings = loadQuestSettings();
-
-  if (existing && existing.date === today) {
-    return existing;
-  }
-
-  const fresh: DailyQuestState = {
-    date: today,
+function freshQuests(date: string, settings: QuestSettings): DailyQuestState {
+  return {
+    date,
     quests: settings.enabledTypes.map((type) => ({
       type,
       target: settings.targets[type],
       progress: 0,
     })),
   };
-  saveRawState(fresh);
-  return fresh;
 }
 
-export function incrementQuestProgress(type: QuestType, amount: number = 1): DailyQuestState {
-  const state = getTodaysQuests();
-  const updated: DailyQuestState = {
-    ...state,
-    quests: state.quests.map((q) =>
-      q.type === type ? { ...q, progress: Math.min(q.progress + amount, q.target) } : q
-    ),
-  };
-  saveRawState(updated);
-  return updated;
+// Today's quests: the stored state if it is from today, otherwise a fresh,
+// zeroed set based on the current settings.
+export function resolveTodaysQuests(
+  stored: DailyQuestState | null,
+  settings: QuestSettings,
+  today: string = getLocalDateString()
+): DailyQuestState {
+  if (stored && stored.date === today) return stored;
+  return freshQuests(today, settings);
+}
+
+export function incrementQuestProgress(type: QuestType, amount: number = 1) {
+  questStateStore.set((prev) => {
+    const state = resolveTodaysQuests(prev, questSettingsStore.get());
+    return {
+      ...state,
+      quests: state.quests.map((q) =>
+        q.type === type ? { ...q, progress: Math.min(q.progress + amount, q.target) } : q
+      ),
+    };
+  });
 }

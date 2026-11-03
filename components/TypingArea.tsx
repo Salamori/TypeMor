@@ -15,16 +15,17 @@ export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingA
   const cursorRef = useRef<HTMLSpanElement>(null);
   const typedRef = useRef("");
 
- useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  // Refocus whenever typing becomes possible again (first load, new text).
+  useEffect(() => {
+    if (!disabled) inputRef.current?.focus();
+  }, [disabled]);
 
   useEffect(() => {
     if (cursorIndex === 0) {
       typedRef.current = "";
       if (inputRef.current) inputRef.current.value = "";
     }
-  }, [chars]);
+  }, [chars, cursorIndex]);
 
   useEffect(() => {
     cursorRef.current?.scrollIntoView({
@@ -33,8 +34,7 @@ export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingA
     });
   }, [cursorIndex]);
 
- function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    console.log("INPUT EVENT FIRED:", e.target.value);
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     const prev = typedRef.current;
 
@@ -56,6 +56,9 @@ export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingA
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Let browser shortcuts (Ctrl+R, Cmd+L, ...) through instead of typing them.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
     // Physical keyboards: handle directly for reliability (desktop)
     if (e.key.length === 1) {
       e.preventDefault();
@@ -73,7 +76,7 @@ export function TypingArea({ chars, cursorIndex, onKeyInput, disabled }: TypingA
       className="relative w-full max-w-3xl mx-auto cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
-     <input
+      <input
         ref={inputRef}
         type="text"
         inputMode="text"

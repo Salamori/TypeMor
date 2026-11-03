@@ -7,85 +7,94 @@ import { TypingArea } from "@/components/TypingArea";
 import { StatsBar } from "@/components/StatsBar";
 import { TextSelector } from "@/components/TextSelector";
 import { WordReview } from "@/components/WordReview";
-import { SAMPLE_TEXTS } from "@/lib/sample-texts";
 import { checkWordsInText } from "@/lib/vocabulary";
-import { generateWords } from "@/lib/word-pool";
-import Link from "next/link";
+import { generateWords, Difficulty } from "@/lib/word-pool";
 import { LevelBar } from "@/components/LevelBar";
 import { useStreak } from "@/hooks/useStreak";
 import { useDailyQuests } from "@/hooks/useDailyQuests";
+import { useHydrated } from "@/lib/store";
 
-export default function Home() {
-  const [text, setText] = useState(SAMPLE_TEXTS[0]);
+export default function TypePage() {
+  // Generated text is random, so render the session only on the client
+  // to avoid a hydration mismatch.
+  const hydrated = useHydrated();
+
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <p className="text-zinc-500">Loading...</p>
+      </main>
+    );
+  }
+
+  return <TypingSession />;
+}
+
+function TypingSession() {
   const [mode, setMode] = useState<"words" | "custom">("words");
- const [wordCount, setWordCount] = useState(25);
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy");
-  const { chars, cursorIndex, stats, isFinished, handleKeyInput, reset } =
-    useTypingEngine(text);
-  const { points, rank, isMarked, markWord, unmarkWord, recordSessionResult, recordCorrectRetype } =
+  const [wordCount, setWordCount] = useState(25);
+  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [initialText] = useState(() => generateWords(25, "easy"));
+  const { text, chars, cursorIndex, stats, isFinished, handleKeyInput, reset } =
+    useTypingEngine(initialText);
+  const { points, isMarked, markWord, unmarkWord, recordSessionResult, recordCorrectRetype } =
     useVocabulary();
-    const { markActive } = useStreak();
+  const { markActive } = useStreak();
   const { progressQuest } = useDailyQuests();
 
- useEffect(() => {
-    const initial = generateWords(25, "easy");
-    setText(initial);
-    reset(initial);
-  }, []);
-useEffect(() => {
-    if (isFinished) {
-      markActive();
-      progressQuest("type_texts");
+  useEffect(() => {
+    if (!isFinished) return;
 
-      // Only count toward personal records if it's a generated text
-      // of reasonable length (custom texts and very short texts can
-      // produce unrealistic WPM spikes).
-      const countsForRecords = mode === "words" && text.length >= 15;
-      recordSessionResult(stats.wpm, stats.accuracy, countsForRecords);
+    markActive();
+    progressQuest("type_texts");
 
+    // Only count toward personal records if it's a generated text
+    // of reasonable length (custom texts and very short texts can
+    // produce unrealistic WPM spikes).
+    const countsForRecords = mode === "words" && text.length >= 15;
+    recordSessionResult(stats.wpm, stats.accuracy, countsForRecords);
+
+    // A word repeated in one text only counts once toward mastery.
     const charStatuses = chars.map((c) => c.status);
-      const wordResults = checkWordsInText(text, charStatuses);
-      for (const result of wordResults) {
-        if (result.correct && isMarked(result.word)) {
-          recordCorrectRetype(result.word);
-          progressQuest("master_words");
-        }
+    const seen = new Set<string>();
+    for (const result of checkWordsInText(text, charStatuses)) {
+      if (!result.correct || seen.has(result.word)) continue;
+      seen.add(result.word);
+      if (recordCorrectRetype(result.word)) {
+        progressQuest("master_words");
       }
     }
+    // Run once per finished session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFinished]);
-  const progress = Math.round((cursorIndex / chars.length) * 100);
 
- function handleSelectLength(count: number, diff: "easy" | "medium" | "hard") {
+  const progress = chars.length > 0 ? Math.round((cursorIndex / chars.length) * 100) : 0;
+
+  function handleSelectLength(count: number, diff: Difficulty) {
     setMode("words");
     setWordCount(count);
     setDifficulty(diff);
-    const next = generateWords(count, diff);
-    setText(next);
-    reset(next);
+    reset(generateWords(count, diff));
   }
 
   function handleSelectCustom(customText: string) {
     setMode("custom");
-    setText(customText);
     reset(customText);
   }
 
- function handleNewText() {
+  function handleNewText() {
     if (mode === "custom") {
       reset(text);
     } else {
-      const next = generateWords(wordCount, difficulty);
-      setText(next);
-      reset(next);
+      reset(generateWords(wordCount, difficulty));
     }
   }
 
   function handleToggleWord(word: string) {
     if (isMarked(word)) {
       unmarkWord(word);
-    } else {
-      markWord(word);
+    } else if (markWord(word)) {
+      progressQuest("mark_words");
     }
   }
 
@@ -95,9 +104,9 @@ useEffect(() => {
         Type<span className="text-emerald-400">Mor</span>
       </h1>
 
-  <LevelBar points={points} />
+      <LevelBar points={points} />
 
-     <TextSelector
+      <TextSelector
         onSelectLength={handleSelectLength}
         onSelectCustom={handleSelectCustom}
         currentMode={mode}
@@ -124,7 +133,7 @@ useEffect(() => {
               onClick={handleNewText}
               className="px-5 py-2 rounded-lg bg-emerald-500 text-zinc-950 font-medium hover:bg-emerald-400 transition"
             >
-              Try another text
+              {mode === "custom" ? "Type it again" : "Try another text"}
             </button>
           </div>
 
@@ -141,7 +150,7 @@ useEffect(() => {
           onClick={handleNewText}
           className="mt-6 text-zinc-500 hover:text-zinc-300 text-sm transition"
         >
-          ↻ Restart with new text
+          {mode === "custom" ? "↻ Restart" : "↻ Restart with new text"}
         </button>
       )}
     </main>

@@ -3,12 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useVocabulary } from "@/hooks/useVocabulary";
+import { useDailyQuests } from "@/hooks/useDailyQuests";
+import { getLevelState } from "@/lib/levels";
+import { MASTERY_STREAK } from "@/lib/vocabulary";
 import { WordDefinition } from "@/components/WordDefinition";
 
 type Filter = "all" | "learning" | "mastered";
 
 export default function VocabularyPage() {
-  const { words, points, rank, markWord, unmarkWord, loaded } = useVocabulary();
+  const { words, points, markWord, unmarkWord, loaded } = useVocabulary();
+  const { progressQuest } = useDailyQuests();
   const [filter, setFilter] = useState<Filter>("all");
   const [newWord, setNewWord] = useState("");
   const [expandedWord, setExpandedWord] = useState<string | null>(null);
@@ -26,7 +30,7 @@ export default function VocabularyPage() {
   function handleAddWord() {
     const trimmed = newWord.trim();
     if (trimmed.length > 0) {
-      markWord(trimmed);
+      if (markWord(trimmed)) progressQuest("mark_words");
       setNewWord("");
     }
   }
@@ -44,13 +48,13 @@ export default function VocabularyPage() {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link
-            href="/"
+            href="/type"
             className="text-sm text-zinc-500 hover:text-zinc-300 transition"
           >
             ← Back to typing
           </Link>
           <p className="text-sm text-zinc-500">
-            {rank.name} · <span className="text-emerald-400 font-semibold">{points}</span> pts
+            {getLevelState(points).rankName} · <span className="text-emerald-400 font-semibold">{points}</span> pts
           </p>
         </div>
 
@@ -68,7 +72,7 @@ export default function VocabularyPage() {
             value={newWord}
             onChange={(e) => setNewWord(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAddWord()}
-            placeholder="Add a word or phrase manually..."
+            placeholder="Add a word manually..."
             className="flex-1 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-emerald-500"
           />
           <button
@@ -125,7 +129,7 @@ export default function VocabularyPage() {
                       </span>
                     ) : (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-                        {w.correctStreak}/3 streak
+                        {w.correctStreak}/{MASTERY_STREAK} streak
                       </span>
                     )}
                   </div>

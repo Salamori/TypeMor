@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useReducer, useCallback, useEffect, useState } from "react";
 
 export type CharStatus = "pending" | "correct" | "incorrect";
 
@@ -19,6 +19,7 @@ export interface TypingStats {
 }
 
 interface UseTypingEngineReturn {
+  text: string;
   chars: CharState[];
   cursorIndex: number;
   stats: TypingStats;
@@ -28,99 +29,94 @@ interface UseTypingEngineReturn {
   reset: (newText?: string) => void;
 }
 
+interface EngineState {
+  text: string;
+  chars: CharState[];
+  cursorIndex: number;
+  startTime: number | null;
+  endTime: number | null;
+  incorrectCount: number;
+  totalTyped: number;
+}
+
+type EngineAction =
+  | { type: "key"; key: string; now: number }
+  | { type: "reset"; text?: string };
+
+function initState(text: string): EngineState {
+  return {
+    text,
+    chars: text.split("").map((char) => ({ char, status: "pending" as CharStatus })),
+    cursorIndex: 0,
+    startTime: null,
+    endTime: null,
+    incorrectCount: 0,
+    totalTyped: 0,
+  };
+}
+
+// A reducer (instead of separate useState calls) so that several keys arriving
+// in one event — e.g. mobile autocomplete or paste — each see the latest cursor.
+function reducer(state: EngineState, action: EngineAction): EngineState {
+  if (action.type === "reset") return initState(action.text ?? state.text);
+
+  if (state.endTime !== null) return state;
+  const { key, now } = action;
+
+  if (key === "Backspace") {
+    if (state.cursorIndex === 0) return state;
+    const chars = [...state.chars];
+    chars[state.cursorIndex - 1] = { ...chars[state.cursorIndex - 1], status: "pending" };
+    return { ...state, chars, cursorIndex: state.cursorIndex - 1 };
+  }
+
+  if (key.length !== 1 || state.cursorIndex >= state.chars.length) return state;
+
+  const chars = [...state.chars];
+  const target = chars[state.cursorIndex];
+  const correct = target.char === key;
+  chars[state.cursorIndex] = { ...target, status: correct ? "correct" : "incorrect" };
+  const cursorIndex = state.cursorIndex + 1;
+
+  return {
+    ...state,
+    chars,
+    cursorIndex,
+    startTime: state.startTime ?? now,
+    endTime: cursorIndex === chars.length ? now : null,
+    incorrectCount: state.incorrectCount + (correct ? 0 : 1),
+    totalTyped: state.totalTyped + 1,
+  };
+}
+
 export function useTypingEngine(initialText: string): UseTypingEngineReturn {
-  const [text, setText] = useState(initialText);
-  const [chars, setChars] = useState<CharState[]>(() =>
-    initialText.split("").map((char) => ({ char, status: "pending" as CharStatus }))
-  );
-  const [cursorIndex, setCursorIndex] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [endTime, setEndTime] = useState<number | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [incorrectCount, setIncorrectCount] = useState(0);
-  const [totalTyped, setTotalTyped] = useState(0);
+  const [state, dispatch] = useReducer(reducer, initialText, initState);
+  const [now, setNow] = useState(0);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const { text, chars, cursorIndex, startTime, endTime, incorrectCount, totalTyped } = state;
   const isStarted = startTime !== null;
   const isFinished = endTime !== null;
 
   useEffect(() => {
-    if (isStarted && !isFinished) {
-      intervalRef.current = setInterval(() => {
-        setElapsedSeconds(Math.floor((Date.now() - (startTime as number)) / 1000));
-      }, 200);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isStarted, isFinished, startTime]);
+    if (!isStarted || isFinished) return;
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, [isStarted, isFinished]);
 
-  const reset = useCallback(
-    (newText?: string) => {
-      const nextText = newText ?? text;
-      setText(nextText);
-      setChars(nextText.split("").map((char) => ({ char, status: "pending" as CharStatus })));
-      setCursorIndex(0);
-      setStartTime(null);
-      setEndTime(null);
-      setElapsedSeconds(0);
-      setIncorrectCount(0);
-      setTotalTyped(0);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    },
-    [text]
-  );
+  const reset = useCallback((newText?: string) => dispatch({ type: "reset", text: newText }), []);
 
   const handleKeyInput = useCallback(
-    (key: string) => {
-      if (isFinished) return;
-
-      if (key === "Backspace") {
-        if (cursorIndex === 0) return;
-        setChars((prev) => {
-          const next = [...prev];
-          next[cursorIndex - 1] = { ...next[cursorIndex - 1], status: "pending" };
-          return next;
-        });
-        setCursorIndex((i) => i - 1);
-        return;
-      }
-
-      if (key.length !== 1) return;
-
-      if (!isStarted) {
-        setStartTime(Date.now());
-      }
-
-      setChars((prev) => {
-        const next = [...prev];
-        const target = next[cursorIndex];
-        const correct = target.char === key;
-        next[cursorIndex] = { ...target, status: correct ? "correct" : "incorrect" };
-        if (!correct) setIncorrectCount((c) => c + 1);
-        return next;
-      });
-
-      setTotalTyped((t) => t + 1);
-
-      const nextIndex = cursorIndex + 1;
-      setCursorIndex(nextIndex);
-
-      if (nextIndex === text.length) {
-        setEndTime(Date.now());
-      }
-    },
-    [cursorIndex, isFinished, isStarted, text.length]
+    (key: string) => dispatch({ type: "key", key, now: Date.now() }),
+    []
   );
 
   const durationSeconds =
-    isFinished && startTime && endTime ? (endTime - startTime) / 1000 : elapsedSeconds;
+    startTime === null ? 0 : Math.max(0, ((endTime ?? now) - startTime) / 1000);
 
   const correctChars = chars.filter((c) => c.status === "correct").length;
   const minutes = Math.max(durationSeconds / 60, 1 / 6000);
   const rawWpm = Math.round(correctChars / 5 / minutes);
-  const accuracy = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 100;
+  const accuracy = totalTyped > 0 ? Math.round(((totalTyped - incorrectCount) / totalTyped) * 100) : 100;
 
   const stats: TypingStats = {
     wpm: Number.isFinite(rawWpm) && isStarted ? rawWpm : 0,
@@ -131,5 +127,5 @@ export function useTypingEngine(initialText: string): UseTypingEngineReturn {
     totalTyped,
   };
 
-  return { chars, cursorIndex, stats, isFinished, isStarted, handleKeyInput, reset };
+  return { text, chars, cursorIndex, stats, isFinished, isStarted, handleKeyInput, reset };
 }

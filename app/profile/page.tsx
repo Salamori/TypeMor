@@ -1,25 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useVocabulary } from "@/hooks/useVocabulary";
 import { useAchievements } from "@/hooks/useAchievements";
 import { getLevelState } from "@/lib/levels";
+import { createLocalStore, useLocalStore } from "@/lib/store";
 
-const TITLE_STORAGE_KEY = "typemor_active_title";
+const titleStore = createLocalStore<string | null>("typemor_active_title", null, (raw) =>
+  typeof raw === "string" && raw.length > 0 ? raw : null
+);
 
 export default function ProfilePage() {
   const { points, stats, words, loaded } = useVocabulary();
   const { unlocked } = useAchievements();
-  const [activeTitle, setActiveTitle] = useState<string | null>(null);
+  const storedTitle = useLocalStore(titleStore);
+  // Only show a title the user still has unlocked.
+  const activeTitle = unlocked.some((a) => a.titleReward === storedTitle) ? storedTitle : null;
 
-  useEffect(() => {
-    const saved = localStorage.getItem(TITLE_STORAGE_KEY);
-    if (saved) setActiveTitle(saved);
-  }, []);
-
-  function selectTitle(title: string) {
-    setActiveTitle(title);
-    localStorage.setItem(TITLE_STORAGE_KEY, title);
+  function selectTitle(title: string | null) {
+    titleStore.set(title);
   }
 
   if (!loaded) {
@@ -87,7 +85,7 @@ export default function ProfilePage() {
           ) : (
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => selectTitle("")}
+                onClick={() => selectTitle(null)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                   !activeTitle
                     ? "bg-emerald-500 text-zinc-950"

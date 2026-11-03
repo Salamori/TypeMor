@@ -512,17 +512,45 @@ export const HARD_WORDS: string[] = [
   "tissue", "collector", "aerial", "ret", "iso", "interchange", "pregnant", "vague", "estimates", "onwards",
 ];
 
+// The frequency list came from Wikipedia text, so it contains site jargon,
+// abbreviations and first names that aren't useful vocabulary. Skip those.
+const EXCLUDED_WORDS = new Set([
+  // Wikipedia / wiki jargon
+  "sysop", "bot", "bots", "stub", "stubs", "redirect", "redirects", "deletion", "delete", "deleted",
+  "vandalism", "admin", "admins", "username", "revert", "reverted", "notability", "align", "unfree",
+  "retrieved", "ref", "refs", "wiki", "nom", "toc", "afd", "prod", "speedy", "sandbox", "infobox",
+  // abbreviations and word fragments
+  "don", "var", "lat", "est", "ret", "iso", "lang", "prof", "per", "via", "non", "pro", "bio", "gov",
+  "mid", "alt", "del", "vol", "eds", "rev", "div", "gen", "col", "amp", "aka", "asp", "app",
+  "jun", "mar", "mon", "sat", "wed", "das", "los", "las", "les", "san", "sri", "ani", "mac",
+  // first names
+  "joe", "tom", "bob", "ben", "sam", "dan", "ann", "lee", "ken", "jay", "rob", "eve", "max", "ray",
+  "barry", "laura", "craig", "rogers", "murphy", "jerry", "oliver", "steven", "luke", "cole", "terry",
+  "warner", "mason", "dick",
+]);
+
+function clean(words: string[]): string[] {
+  return words.filter((w) => !EXCLUDED_WORDS.has(w));
+}
+
+const POOLS: Record<Difficulty, string[]> = {
+  easy: clean(EASY_WORDS),
+  medium: clean(MEDIUM_WORDS),
+  hard: clean(HARD_WORDS),
+};
+
 export function getWordPool(difficulty: Difficulty): string[] {
-  if (difficulty === "easy") return EASY_WORDS;
-  if (difficulty === "medium") return MEDIUM_WORDS;
-  return HARD_WORDS;
+  return POOLS[difficulty];
 }
 
 export function generateWords(count: number, difficulty: Difficulty = "easy"): string {
   const pool = getWordPool(difficulty);
   const words: string[] = [];
   for (let i = 0; i < count; i++) {
-    words.push(pool[Math.floor(Math.random() * pool.length)]);
+    let word = pool[Math.floor(Math.random() * pool.length)];
+    // Avoid the same word twice in a row.
+    while (word === words[i - 1]) word = pool[Math.floor(Math.random() * pool.length)];
+    words.push(word);
   }
   return words.join(" ") + ".";
 }

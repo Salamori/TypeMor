@@ -1,43 +1,35 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useMemo } from "react";
+import { useHydrated, useLocalStore } from "@/lib/store";
 import {
-  DailyQuestState,
-  QuestType,
   QuestSettings,
-  getTodaysQuests,
   incrementQuestProgress,
-  loadQuestSettings,
-  saveQuestSettings,
+  questSettingsStore,
+  questStateStore,
+  resolveTodaysQuests,
 } from "@/lib/dailyQuests";
 
+function updateSettings(newSettings: QuestSettings) {
+  questSettingsStore.set(newSettings);
+}
+
 export function useDailyQuests() {
-  const [state, setState] = useState<DailyQuestState>({ date: "", quests: [] });
-  const [settings, setSettings] = useState<QuestSettings>({
-    enabledTypes: [],
-    targets: { type_texts: 3, write_essay: 1, master_words: 2, mark_words: 3 },
-  });
-  const [loaded, setLoaded] = useState(false);
+  const stored = useLocalStore(questStateStore);
+  const settings = useLocalStore(questSettingsStore);
+  const loaded = useHydrated();
 
-  useEffect(() => {
-    setState(getTodaysQuests());
-    setSettings(loadQuestSettings());
-    setLoaded(true);
-  }, []);
-
-  const progressQuest = useCallback((type: QuestType, amount: number = 1) => {
-    const updated = incrementQuestProgress(type, amount);
-    setState(updated);
-  }, []);
-
-  const updateSettings = useCallback((newSettings: QuestSettings) => {
-    saveQuestSettings(newSettings);
-    setSettings(newSettings);
-    setState(getTodaysQuests());
-  }, []);
+  const state = useMemo(() => resolveTodaysQuests(stored, settings), [stored, settings]);
 
   const allComplete =
     state.quests.length > 0 && state.quests.every((q) => q.progress >= q.target);
 
-  return { state, settings, progressQuest, updateSettings, allComplete, loaded };
+  return {
+    state,
+    settings,
+    progressQuest: incrementQuestProgress,
+    updateSettings,
+    allComplete,
+    loaded,
+  };
 }
